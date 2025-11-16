@@ -162,8 +162,8 @@
         y el listado de estudiantes por grupo.
       </p>
       <div class="doc-feature-badges mt-auto">
-        <span class="badge badge-grupos">Ver grupos</span>
-        <span class="badge badge-horario">Horario</span>
+        <a class="badge badge-grupos text-decoration-none" href="{{ url_for('docente_grupos_materias') }}">Ver grupos</a>
+        <a class="badge badge-horario text-decoration-none" href="{{ url_for('docente_asistencias') }}">Horario</a>
       </div>
     </div>
   </div>
@@ -180,8 +180,8 @@
         de evaluación y revisa el historial académico de tus grupos.
       </p>
       <div class="doc-feature-badges mt-auto">
-        <span class="badge badge-eval">Capturar</span>
-        <span class="badge badge-rep">Reportes</span>
+        <a class="badge badge-eval text-decoration-none" href="{{ url_for('docente_evaluaciones') }}">Capturar</a>
+        <a class="badge badge-rep text-decoration-none" href="{{ url_for('docente_evaluaciones') }}">Reportes</a>
       </div>
     </div>
   </div>
@@ -198,7 +198,7 @@
         por estudiante o por grupo.
       </p>
       <div class="doc-feature-badges mt-auto">
-        <span class="badge badge-asist">Marcar asistencia</span>
+        <a class="badge badge-asist text-decoration-none" href="{{ url_for('docente_asistencias') }}">Marcar asistencia</a>
       </div>
     </div>
   </div>
@@ -215,7 +215,7 @@
         con tus materias y actividades académicas.
       </p>
       <div class="doc-feature-badges mt-auto">
-        <span class="badge badge-rep">Ver avisos</span>
+        <a class="badge badge-rep text-decoration-none" href="{{ url_for('docente_comunicacion') }}">Ver avisos</a>
       </div>
     </div>
   </div>

@@ -161,7 +161,7 @@
         Control de existencias, clasificaciones y ubicación física.
       </p>
       <div class="biblio-feature-badges mt-auto">
-        <span class="badge badge-cat">Ver catálogo</span>
+        <a class="badge badge-cat text-decoration-none" href="{{ url_for('biblioteca_catalogo') }}">Ver catálogo</a>
         <span class="badge badge-rep">Reportes</span>
       </div>
     </div>
@@ -179,7 +179,7 @@
         Visualiza estado actual por alumno y por material.
       </p>
       <div class="biblio-feature-badges mt-auto">
-        <span class="badge badge-prest">Gestionar préstamos</span>
+        <a class="badge badge-prest text-decoration-none" href="{{ url_for('biblioteca_prestamos') }}">Gestionar préstamos</a>
       </div>
     </div>
   </div>
@@ -196,7 +196,7 @@
         y sanciones aplicadas a los estudiantes.
       </p>
       <div class="biblio-feature-badges mt-auto">
-        <span class="badge badge-hist">Ver historial</span>
+        <a class="badge badge-hist text-decoration-none" href="{{ url_for('biblioteca_historial') }}">Ver historial</a>
         <span class="badge badge-sanc">Sanciones</span>
       </div>
     </div>
@@ -214,7 +214,7 @@
         reservado y campañas de fomento a la lectura.
       </p>
       <div class="biblio-feature-badges mt-auto">
-        <span class="badge badge-rep">Ver avisos</span>
+        <a class="badge badge-rep text-decoration-none" href="{{ url_for('biblioteca_notificaciones') }}">Ver avisos</a>
       </div>
     </div>
   </div>

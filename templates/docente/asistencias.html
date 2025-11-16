@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Asistencias{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="mb-0">Control de asistencias</h4>
+    <small class="text-muted">Selecciona un grupo para ver su lista de alumnos</small>
+  </div>
+  <a class="btn btn-outline-primary" href="{{ url_for('perfil_docente') }}">Volver al panel</a>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-6 col-md-4">
+        <label class="form-label">Grupo / Materia</label>
+        <select name="materia" class="form-select" onchange="this.form.submit()">
+          <option value="">Selecciona</option>
+          {% for g in grupos %}
+            <option value="{{ g.materia_alta_id }}" {% if materia_alta and materia_alta|int == g.materia_alta_id %}selected{% endif %}>
+              {{ g.clave }} - {{ g.nombre }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <table class="table align-middle table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Alumno</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if alumnos %}
+          {% for al in alumnos %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ al.alumno }}<br><small class="text-muted">{{ al.numero_control }}</small></td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="2" class="text-center text-muted">Selecciona un grupo para ver los alumnos.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

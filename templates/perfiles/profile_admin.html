@@ -153,7 +153,7 @@
     {# Botón para crear usuario: solo lo ve el rol Administrador #}
     {% if es_admin %}
        <div class="d-flex justify-content-end mb-3">
-        <a href="#mod-usuarios-roles" class="btn btn-sm btn-primary" style="border-radius: 999px;">
+        <a href="{{ url_for('admin_usuario_nuevo') }}" class="btn btn-sm btn-primary" style="border-radius: 999px;">
           + Crear nuevo usuario
         </a>
       </div>
@@ -179,12 +179,12 @@
         Crear, editar, borrar, bloquear usuarios. Gestión de permisos y roles del sistema.
       </p>
       <div class="admin-feature-badges mt-auto">
-        <span class="badge badge-add">Alta</span>
-        <span class="badge badge-edit">Edit</span>
+        <a class="badge badge-add text-decoration-none" href="{{ url_for('admin_usuario_nuevo') }}">Alta</a>
+        <a class="badge badge-edit text-decoration-none" href="{{ url_for('admin_usuarios') }}">Edit</a>
         <span class="badge badge-del">Baja</span>
         <span class="badge badge-block">Block</span>
-        <span class="badge badge-reset">Reset</span>
-        <span class="badge badge-search">Buscar</span>
+        <a class="badge badge-reset text-decoration-none" href="{{ url_for('admin_usuarios') }}">Reset</a>
+        <a class="badge badge-search text-decoration-none" href="{{ url_for('admin_usuarios') }}">Buscar</a>
       </div>
     </div>
   </div>
