@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Usuarios{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="mb-0">Usuarios y roles</h4>
+    <small class="text-muted">Gestión básica de cuentas</small>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('admin_usuario_nuevo') }}">+ Nuevo usuario</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle table-striped mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Usuario</th>
+          <th>Correo</th>
+          <th>Roles</th>
+          <th>Estado</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if usuarios %}
+          {% for u in usuarios %}
+          <tr>
+            <td>{{ u.nombre_usuario }}</td>
+            <td>{{ u.correo_electronico }}</td>
+            <td>
+              {% if u.roles %}
+                {% for rol in u.roles %}
+                  <span class="badge bg-secondary me-1">{{ rol }}</span>
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.activo %}
+                <span class="badge bg-success">Activo</span>
+              {% else %}
+                <span class="badge bg-danger">Bloqueado</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_usuario_editar', id_usuario=u.id_usuario) }}">Editar</a>
+              <a class="btn btn-sm btn-outline-danger" href="{{ url_for('admin_usuario_bloquear', id_usuario=u.id_usuario) }}">Block</a>
+              <a class="btn btn-sm btn-outline-warning" href="{{ url_for('admin_usuario_reset', id_usuario=u.id_usuario) }}">Reset</a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="5" class="text-center text-muted">No hay usuarios para mostrar.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

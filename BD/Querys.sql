@@ -117,7 +117,8 @@ VALUES
   ('Administrador', 'Administrador del sistema'),
   ('Docente', 'Profesor'),
   ('Estudiante', 'Alumno'),
-  ('Bibliotecario', 'Gestor de biblioteca')
+  ('Bibliotecario', 'Gestor de biblioteca'),
+  ('Coordinador', 'Coordinador académico')
 ON CONFLICT (nombre_rol) DO NOTHING;
 
 -- Las contraseñas se hashean por el trigger (pgcrypto):
@@ -131,19 +132,22 @@ VALUES
   ('doc1',    'docente1@demo.edu.mx', 'Docente123*'),
   ('doc2',    'docente2@demo.edu.mx', 'Docente123*'),
   ('biblio1', 'biblio1@demo.edu.mx',  'Biblio123*'),
+  ('coord1',  'coord1@demo.edu.mx',   'Coord123*'),
   ('estu1',   'estu1@demo.edu.mx',    'Estu123*'),
-  ('estu2',   'estu2@demo.edu.mx',    'Estu123*')
+  ('estu2',   'estu2@demo.edu.mx',    'Estu123*'),
+  ('estu3',   'estu3@demo.edu.mx',    'Estu123*')
 ON CONFLICT (nombre_usuario) DO NOTHING;
 
 -- Asignación de roles
 INSERT INTO seguridad.usuario_rol(id_usuario, id_rol)
 SELECT u.id_usuario, r.id_rol
 FROM seguridad.usuarios u
-JOIN seguridad.roles r
- ON ( (u.nombre_usuario='admin1'      AND r.nombre_rol='Administrador')
+ JOIN seguridad.roles r
+  ON ( (u.nombre_usuario='admin1'      AND r.nombre_rol='Administrador')
    OR (u.nombre_usuario IN ('doc1','doc2') AND r.nombre_rol='Docente')
    OR (u.nombre_usuario='biblio1'     AND r.nombre_rol='Bibliotecario')
-   OR (u.nombre_usuario IN ('estu1','estu2') AND r.nombre_rol='Estudiante') )
+   OR (u.nombre_usuario='coord1'      AND r.nombre_rol='Coordinador')
+   OR (u.nombre_usuario IN ('estu1','estu2','estu3') AND r.nombre_rol='Estudiante') )
 ON CONFLICT DO NOTHING;
 
 -- =========================================
@@ -227,6 +231,26 @@ VALUES (
   (SELECT id_sexo FROM rrhh.cat_sexos WHERE nombre='Hombre'),
   (SELECT estado_civil_id FROM academico.cat_estado_civil WHERE nombre='Casado'),
   (SELECT id_usuario FROM seguridad.usuarios WHERE nombre_usuario='biblio1')
+)
+ON CONFLICT (fk_id_usuario) DO NOTHING;
+
+-- Coordinador
+INSERT INTO rrhh.personal(
+  nombre, apellido_paterno, apellido_materno,
+  fecha_nacimiento, correo_institucional,
+  rfc_text, curp_text,
+  fk_nacionalidad, fk_centro_trabajo, fk_sexo, fk_estado_civil,
+  fk_id_usuario
+)
+VALUES (
+  'Patricia', 'López', 'Martínez',
+  '1983-09-09', 'coord1@demo.edu.mx',
+  'LOMP830909XXX', 'LOMP830909MDFPTR08',
+  (SELECT id_nacionalidad FROM rrhh.cat_nacionalidades WHERE nombre='Mexicana'),
+  (SELECT id_centro_trabajo FROM rrhh.cat_centros_trabajo WHERE nombre='Campus Principal'),
+  (SELECT id_sexo FROM rrhh.cat_sexos WHERE nombre='Mujer'),
+  (SELECT estado_civil_id FROM academico.cat_estado_civil WHERE nombre='Casado'),
+  (SELECT id_usuario FROM seguridad.usuarios WHERE nombre_usuario='coord1')
 )
 ON CONFLICT (fk_id_usuario) DO NOTHING;
 
@@ -365,6 +389,15 @@ VALUES
   (SELECT id_nacionalidad FROM rrhh.cat_nacionalidades WHERE nombre='Mexicana'),
   (SELECT campus_id FROM academico.cat_campus WHERE nombre='Campus Mante'),
   (SELECT modalidad_id FROM academico.cat_modalidad WHERE nombre='Escolarizada')
+),
+(
+  '2501E0003', 'TEST050303HDFLRS03', 'Carlos', 'Ramírez', 'Santos',
+  '2005-03-03',
+  (SELECT genero_id FROM academico.cat_genero WHERE nombre='Masculino'),
+  (SELECT estado_civil_id FROM academico.cat_estado_civil WHERE nombre='Soltero'),
+  (SELECT id_nacionalidad FROM rrhh.cat_nacionalidades WHERE nombre='Mexicana'),
+  (SELECT campus_id FROM academico.cat_campus WHERE nombre='Campus Mante'),
+  (SELECT modalidad_id FROM academico.cat_modalidad WHERE nombre='Escolarizada')
 )
 ON CONFLICT (numero_control) DO NOTHING;
 
@@ -374,13 +407,15 @@ INSERT INTO academico.contacto(
 )
 VALUES
 ('2501E0001', '2501E0001@itsemante.edu.mx', 'estu1@mail.com', '8341000001', 'Calle 1, Mante'),
-('2501E0002', '2501E0002@itsemante.edu.mx', 'estu2@mail.com', '8341000002', 'Calle 2, Mante');
+('2501E0002', '2501E0002@itsemante.edu.mx', 'estu2@mail.com', '8341000002', 'Calle 2, Mante'),
+('2501E0003', '2501E0003@itsemante.edu.mx', 'estu3@mail.com', '8341000003', 'Calle 3, Mante');
 
 -- Vínculo user -> alumno
 INSERT INTO seguridad.auth_user_alumno(user_id, numero_control)
 VALUES
 ((SELECT id_usuario FROM seguridad.usuarios WHERE nombre_usuario='estu1'), '2501E0001'),
-((SELECT id_usuario FROM seguridad.usuarios WHERE nombre_usuario='estu2'), '2501E0002')
+((SELECT id_usuario FROM seguridad.usuarios WHERE nombre_usuario='estu2'), '2501E0002'),
+((SELECT id_usuario FROM seguridad.usuarios WHERE nombre_usuario='estu3'), '2501E0003')
 ON CONFLICT (user_id) DO NOTHING;
 
 -- Inscripción simple: estu1 inscrito a BD1 en 2025-1
@@ -397,6 +432,28 @@ VALUES (
    LIMIT 1),
   (SELECT estado_id FROM academico.cat_estado_inscripcion WHERE nombre='Inscrito'),
   NULL
+),
+(
+  '2501E0002',
+  (SELECT ma.materia_alta_id
+   FROM planes.materia_alta ma
+   JOIN planes.carrera_materia cm ON cm.carrera_materia_id = ma.carrera_materia_id
+   JOIN planes.materia m ON m.materia_id = cm.materia_id
+   WHERE ma.ciclo='2025-1' AND m.clave='PROG1'
+   LIMIT 1),
+  (SELECT estado_id FROM academico.cat_estado_inscripcion WHERE nombre='Inscrito'),
+  95
+),
+(
+  '2501E0003',
+  (SELECT ma.materia_alta_id
+   FROM planes.materia_alta ma
+   JOIN planes.carrera_materia cm ON cm.carrera_materia_id = ma.carrera_materia_id
+   JOIN planes.materia m ON m.materia_id = cm.materia_id
+   WHERE ma.ciclo='2025-1' AND m.clave='REDES'
+   LIMIT 1),
+  (SELECT estado_id FROM academico.cat_estado_inscripcion WHERE nombre='Inscrito'),
+  88
 )
 ON CONFLICT DO NOTHING;
 
@@ -459,6 +516,28 @@ VALUES (
   (SELECT id_libro FROM biblioteca.Libros WHERE titulo_libro='Fundamentos de Bases de Datos' LIMIT 1),
   NOW() + INTERVAL '7 days',
   'Activo'
+),
+(
+  '2501E0002',
+  NULL,
+  (SELECT id_libro FROM biblioteca.Libros WHERE titulo_libro='Sistemas Operativos Modernos' LIMIT 1),
+  NOW() - INTERVAL '2 days',
+  'Vencido'
+),
+(
+  '2501E0003',
+  NULL,
+  (SELECT id_libro FROM biblioteca.Libros WHERE titulo_libro='Fundamentos de Bases de Datos' LIMIT 1),
+  NOW() - INTERVAL '10 days',
+  'Devuelto'
 );
+
+-- Avisos generales
+INSERT INTO comunicacion.avisos(titulo, mensaje, fecha)
+VALUES
+  ('Entrega de proyectos', 'Recuerda subir el proyecto final antes del viernes.', NOW()),
+  ('Biblioteca', 'Se han agregado nuevos títulos de redes.', NOW() - INTERVAL '1 day'),
+  ('Mantenimiento', 'El laboratorio de cómputo no estará disponible el lunes.', NOW() - INTERVAL '2 days')
+ON CONFLICT DO NOTHING;
 
 COMMIT;

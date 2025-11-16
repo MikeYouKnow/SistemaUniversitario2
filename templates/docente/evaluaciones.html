@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Evaluaciones{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="mb-0">Evaluación y calificaciones</h4>
+    <small class="text-muted">Actualiza las calificaciones de tus alumnos</small>
+  </div>
+  <a class="btn btn-outline-primary" href="{{ url_for('perfil_docente') }}">Volver al panel</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive">
+    <table class="table align-middle table-striped">
+      <thead class="table-light">
+        <tr>
+          <th>Alumno</th>
+          <th>Materia</th>
+          <th>Calificación</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if datos %}
+          {% for fila in datos %}
+          <tr>
+            <td>{{ fila.alumno }}<br><small class="text-muted">{{ fila.numero_control }}</small></td>
+            <td>{{ fila.clave_materia }} - {{ fila.nombre_materia }}</td>
+            <td>{{ fila.calificacion if fila.calificacion is not none else '—' }}</td>
+            <td>
+              <form method="post" action="{{ url_for('docente_actualizar_calificacion') }}" class="d-flex gap-2">
+                <input type="hidden" name="id_inscripcion" value="{{ fila.id_inscripcion }}" />
+                <input type="number" name="calificacion" class="form-control form-control-sm" step="0.1" min="0" max="100" placeholder="Nueva" required>
+                <button class="btn btn-sm btn-primary" type="submit">Guardar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="4" class="text-center text-muted">Sin inscripciones para evaluar.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

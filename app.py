@@ -209,6 +209,125 @@ def dashboard():
         return redirect(url_for(endpoint))
 
     return render_template("dashboard_estudiante.html", user=user)
+
+
+# ===============================
+# PERFILES BASE
+# ===============================
+
+
+@app.route("/perfil/admin")
+@login_required
+def perfil_administrador():
+    user = current_user()
+    return render_template("perfiles/profile_admin.html", user=user)
+
+
+@app.route("/perfil/docente")
+@login_required
+def perfil_docente():
+    user = current_user()
+    return render_template("perfiles/profile_docente.html", user=user)
+
+
+@app.route("/perfil/bibliotecario")
+@login_required
+def perfil_bibliotecario():
+    user = current_user()
+    return render_template("perfiles/profile_bibliotecario.html", user=user)
+
+
+@app.route("/perfil/coordinador")
+@login_required
+def perfil_coordinador():
+    user = current_user()
+    return render_template("perfiles/profile_coordinador.html", user=user)
+
+
+@app.route("/estudiante/informacion")
+@login_required
+def est_perfil_informacion():
+    user = current_user()
+    conn = None
+    datos = {}
+    materias = []
+    aulas = []
+    biblioteca = []
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            SELECT a.numero_control, a.nombre, a.apellido_paterno, a.apellido_materno,
+                   c.correo_institucional, c.correo_personal, c.telefono, c.direccion
+              FROM seguridad.auth_user_alumno ua
+              JOIN academico.alumnos a ON a.numero_control = ua.numero_control
+              LEFT JOIN academico.contacto c ON c.numero_control = a.numero_control
+             WHERE ua.user_id = %s
+            """,
+            (user["id_usuario"],),
+        )
+        datos = cur.fetchone() or {}
+
+        cur.execute(
+            """
+            SELECT m.clave, m.nombre, cm.semestre, ma.ciclo
+              FROM academico.alumno_inscripcion ai
+              JOIN planes.materia_alta ma ON ma.materia_alta_id = ai.fk_materia_alta
+              JOIN planes.carrera_materia cm ON cm.carrera_materia_id = ma.carrera_materia_id
+              JOIN planes.materia m ON m.materia_id = cm.materia_id
+             WHERE ai.fk_alumno = (
+                 SELECT numero_control FROM seguridad.auth_user_alumno WHERE user_id = %s
+             )
+             ORDER BY ma.ciclo DESC, m.clave
+            """,
+            (user["id_usuario"],),
+        )
+        materias = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT a.clave, e.nombre AS edificio, a.piso, ta.nombre AS tipo
+              FROM infraestructura.aula a
+              JOIN infraestructura.edificio e ON e.edificio_id = a.edificio_id
+              JOIN infraestructura.tipo_aula ta ON ta.tipo_id = a.tipo_id
+             ORDER BY e.numero, a.clave
+            """,
+        )
+        aulas = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT p.id_prestamo, l.titulo_libro, p.estado, p.fecha_devolucion_estimada
+              FROM biblioteca.prestamos p
+              JOIN biblioteca.libros l ON l.id_libro = p.id_libro
+             WHERE p.fk_alumno = (
+                 SELECT numero_control FROM seguridad.auth_user_alumno WHERE user_id = %s
+             )
+             ORDER BY p.id_prestamo DESC
+            """,
+            (user["id_usuario"],),
+        )
+        biblioteca = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.close()
+        flash(f"No se pudo cargar información del estudiante: {e}", "danger")
+
+    return render_template(
+        "perfiles/profile_estudiante.html",
+        user=user,
+        datos=datos,
+        materias=materias,
+        aulas=aulas,
+        biblioteca=biblioteca,
+    )
 @app.route("/docente/grupos-materias")
 @login_required
 def docente_grupos_materias():
@@ -465,3 +584,404 @@ def docente_comunicacion():
         user=user,
         avisos=avisos
     )
+
+
+# ===============================
+# ADMINISTRADOR – USUARIOS
+# ===============================
+
+
+@app.route("/admin/usuarios")
+@login_required
+def admin_usuarios():
+    user = current_user()
+    conn = None
+    usuarios = []
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            SELECT u.id_usuario, u.nombre_usuario, u.correo_electronico, u.activo,
+                   ARRAY_REMOVE(ARRAY_AGG(DISTINCT r.nombre_rol), NULL) AS roles
+              FROM seguridad.usuarios u
+              LEFT JOIN seguridad.usuario_rol ur ON ur.id_usuario = u.id_usuario
+              LEFT JOIN seguridad.roles r ON r.id_rol = ur.id_rol
+             GROUP BY u.id_usuario
+             ORDER BY u.nombre_usuario;
+            """
+        )
+        usuarios = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.close()
+        flash(f"No se pudo cargar el catálogo de usuarios: {e}", "danger")
+
+    return render_template("admin/usuarios_list.html", user=user, usuarios=usuarios)
+
+
+@app.route("/admin/usuarios/nuevo", methods=["GET", "POST"])
+@login_required
+def admin_usuario_nuevo():
+    user = current_user()
+    conn = None
+    roles = []
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id_rol, nombre_rol FROM seguridad.roles ORDER BY nombre_rol;")
+        roles = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception:
+        if conn and not conn.closed:
+            conn.close()
+
+    if request.method == "POST":
+        username = request.form.get("username")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        rol_id = request.form.get("rol_id")
+
+        if not (username and email and password and rol_id):
+            flash("Completa todos los campos.", "danger")
+            return redirect(url_for("admin_usuario_nuevo"))
+
+        conn = None
+        try:
+            conn = get_connection()
+            cur = conn.cursor()
+
+            cur.execute(
+                """
+                INSERT INTO seguridad.usuarios(nombre_usuario, correo_electronico, contrasena_hash)
+                VALUES (%s, %s, crypt(%s, gen_salt('bf')))
+                RETURNING id_usuario;
+                """,
+                (username, email, password),
+            )
+            nuevo_id = cur.fetchone()["id_usuario"]
+
+            cur.execute(
+                "INSERT INTO seguridad.usuario_rol(id_usuario, id_rol) VALUES (%s, %s);",
+                (nuevo_id, rol_id),
+            )
+
+            conn.commit()
+            cur.close()
+            conn.close()
+
+            flash("Usuario creado correctamente.", "success")
+            return redirect(url_for("admin_usuarios"))
+
+        except Exception as e:
+            if conn and not conn.closed:
+                conn.rollback()
+                conn.close()
+            flash(f"No se pudo crear el usuario: {e}", "danger")
+
+    return render_template("admin/usuario_form.html", user=user, roles=roles, modo="nuevo")
+
+
+@app.route("/admin/usuarios/<int:id_usuario>/editar", methods=["GET", "POST"])
+@login_required
+def admin_usuario_editar(id_usuario):
+    user = current_user()
+    conn = None
+    roles = []
+    usuario = None
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id_rol, nombre_rol FROM seguridad.roles ORDER BY nombre_rol;")
+        roles = cur.fetchall()
+
+        cur.execute(
+            "SELECT id_usuario, nombre_usuario, correo_electronico, activo FROM seguridad.usuarios WHERE id_usuario=%s;",
+            (id_usuario,),
+        )
+        usuario = cur.fetchone()
+
+        cur.execute(
+            "SELECT id_rol FROM seguridad.usuario_rol WHERE id_usuario=%s;",
+            (id_usuario,),
+        )
+        rol_actual = cur.fetchone()
+        if usuario:
+            usuario["rol_id"] = rol_actual["id_rol"] if rol_actual else None
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.close()
+        flash(f"No se pudo cargar el usuario: {e}", "danger")
+
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+        rol_id = request.form.get("rol_id")
+
+        if not (email and rol_id):
+            flash("Correo y rol son obligatorios.", "danger")
+            return redirect(url_for("admin_usuario_editar", id_usuario=id_usuario))
+
+        conn = None
+        try:
+            conn = get_connection()
+            cur = conn.cursor()
+
+            if password:
+                cur.execute(
+                    "UPDATE seguridad.usuarios SET correo_electronico=%s, contrasena_hash=crypt(%s, gen_salt('bf')) WHERE id_usuario=%s;",
+                    (email, password, id_usuario),
+                )
+            else:
+                cur.execute(
+                    "UPDATE seguridad.usuarios SET correo_electronico=%s WHERE id_usuario=%s;",
+                    (email, id_usuario),
+                )
+
+            cur.execute(
+                "DELETE FROM seguridad.usuario_rol WHERE id_usuario=%s;",
+                (id_usuario,),
+            )
+            cur.execute(
+                "INSERT INTO seguridad.usuario_rol(id_usuario, id_rol) VALUES (%s, %s);",
+                (id_usuario, rol_id),
+            )
+
+            conn.commit()
+            cur.close()
+            conn.close()
+
+            flash("Usuario actualizado.", "success")
+            return redirect(url_for("admin_usuarios"))
+
+        except Exception as e:
+            if conn and not conn.closed:
+                conn.rollback()
+                conn.close()
+            flash(f"No se pudo actualizar el usuario: {e}", "danger")
+
+    return render_template(
+        "admin/usuario_form.html",
+        user=user,
+        roles=roles,
+        usuario=usuario,
+        modo="editar",
+    )
+
+
+@app.route("/admin/usuarios/<int:id_usuario>/bloquear")
+@login_required
+def admin_usuario_bloquear(id_usuario):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE seguridad.usuarios SET activo=FALSE WHERE id_usuario=%s;",
+            (id_usuario,),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash("Usuario bloqueado.", "info")
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.rollback()
+            conn.close()
+        flash(f"No se pudo bloquear el usuario: {e}", "danger")
+    return redirect(url_for("admin_usuarios"))
+
+
+@app.route("/admin/usuarios/<int:id_usuario>/reset")
+@login_required
+def admin_usuario_reset(id_usuario):
+    conn = None
+    nueva = generate_random_password()
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE seguridad.usuarios SET contrasena_hash=crypt(%s, gen_salt('bf')) WHERE id_usuario=%s;",
+            (nueva, id_usuario),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash(f"Contraseña restablecida: {nueva}", "success")
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.rollback()
+            conn.close()
+        flash(f"No se pudo restablecer la contraseña: {e}", "danger")
+    return redirect(url_for("admin_usuarios"))
+
+
+# ===============================
+# BIBLIOTECA
+# ===============================
+
+
+@app.route("/biblioteca/catalogo")
+@login_required
+def biblioteca_catalogo():
+    user = current_user()
+    conn = None
+    libros = []
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT l.id_libro, l.titulo_libro, c.descripcion AS clasificacion,
+                   e.nombre_editorial, i.cantidad_disponible
+              FROM biblioteca.libros l
+              LEFT JOIN biblioteca.clasificaciones c ON c.id_clasificacion = l.id_clasificacion
+              LEFT JOIN biblioteca.editoriales e ON e.id_editorial = l.id_editorial
+              LEFT JOIN biblioteca.inventario i ON i.id_libro = l.id_libro
+             ORDER BY l.titulo_libro;
+            """
+        )
+        libros = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.close()
+        flash(f"No se pudo cargar el catálogo: {e}", "danger")
+
+    return render_template("biblioteca/catalogo.html", user=user, libros=libros)
+
+
+@app.route("/biblioteca/prestamos")
+@login_required
+def biblioteca_prestamos():
+    user = current_user()
+    conn = None
+    prestamos = []
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT p.id_prestamo, p.fk_alumno, a.nombre || ' ' || a.apellido_paterno AS alumno,
+                   l.titulo_libro, p.fecha_devolucion_estimada, p.estado
+              FROM biblioteca.prestamos p
+              LEFT JOIN academico.alumnos a ON a.numero_control = p.fk_alumno
+              JOIN biblioteca.libros l ON l.id_libro = p.id_libro
+             WHERE p.estado = 'Activo'
+             ORDER BY p.fecha_devolucion_estimada;
+            """
+        )
+        prestamos = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.close()
+        flash(f"No se pudo cargar los préstamos: {e}", "danger")
+
+    return render_template("biblioteca/prestamos.html", user=user, prestamos=prestamos)
+
+
+@app.route("/biblioteca/prestamos/devolver", methods=["POST"])
+@login_required
+def biblioteca_prestamo_devolver():
+    prestamo_id = request.form.get("prestamo_id")
+    conn = None
+    if not prestamo_id:
+        flash("Selecciona un préstamo.", "warning")
+        return redirect(url_for("biblioteca_prestamos"))
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE biblioteca.prestamos SET estado='Devuelto', fecha_devolucion_real=NOW() WHERE id_prestamo=%s;",
+            (prestamo_id,),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash("Préstamo marcado como devuelto.", "success")
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.rollback()
+            conn.close()
+        flash(f"No se pudo actualizar el préstamo: {e}", "danger")
+    return redirect(url_for("biblioteca_prestamos"))
+
+
+@app.route("/biblioteca/historial")
+@login_required
+def biblioteca_historial():
+    user = current_user()
+    conn = None
+    historial = []
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT p.id_prestamo, p.fk_alumno, a.nombre || ' ' || a.apellido_paterno AS alumno,
+                   l.titulo_libro, p.fecha_devolucion_estimada, p.fecha_devolucion_real, p.estado
+              FROM biblioteca.prestamos p
+              LEFT JOIN academico.alumnos a ON a.numero_control = p.fk_alumno
+              JOIN biblioteca.libros l ON l.id_libro = p.id_libro
+             WHERE p.estado <> 'Activo'
+             ORDER BY p.id_prestamo DESC;
+            """
+        )
+        historial = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.close()
+        flash(f"No se pudo cargar el historial: {e}", "danger")
+
+    return render_template("biblioteca/historial.html", user=user, historial=historial)
+
+
+@app.route("/biblioteca/notificaciones")
+@login_required
+def biblioteca_notificaciones():
+    user = current_user()
+    avisos = []
+    conn = None
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT id_aviso, titulo, mensaje, fecha
+              FROM comunicacion.avisos
+             ORDER BY fecha DESC
+             LIMIT 50;
+            """
+        )
+        avisos = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        if conn and not conn.closed:
+            conn.close()
+        flash(f"No se pudo cargar notificaciones: {e}", "danger")
+
+    return render_template("biblioteca/notificaciones.html", user=user, avisos=avisos)

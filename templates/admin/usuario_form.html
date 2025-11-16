@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Usuario{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="mb-0">{{ 'Nuevo usuario' if modo=='nuevo' else 'Editar usuario' }}</h4>
+    <small class="text-muted">Define datos básicos y rol</small>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin_usuarios') }}">Volver</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post" class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Usuario</label>
+        <input class="form-control" name="username" value="{{ usuario.nombre_usuario if usuario else '' }}" {% if modo=='editar' %}readonly{% endif %} required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Correo</label>
+        <input class="form-control" type="email" name="email" value="{{ usuario.correo_electronico if usuario else '' }}" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Rol</label>
+        <select class="form-select" name="rol_id" required>
+          <option value="">Selecciona</option>
+          {% for rol in roles %}
+            <option value="{{ rol.id_rol }}" {% if usuario and usuario.rol_id==rol.id_rol %}selected{% endif %}>{{ rol.nombre_rol }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Contraseña{% if modo=='editar' %} (dejar vacío para mantener){% endif %}</label>
+        <input class="form-control" type="password" name="password" {% if modo=='nuevo' %}required{% endif %}>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

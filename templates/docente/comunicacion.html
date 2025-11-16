@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Comunicación{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="mb-0">Avisos y comunicación</h4>
+    <small class="text-muted">Mensajes recientes para tus grupos</small>
+  </div>
+  <a class="btn btn-outline-primary" href="{{ url_for('perfil_docente') }}">Volver al panel</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="list-group list-group-flush">
+    {% if avisos %}
+      {% for aviso in avisos %}
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <h6 class="mb-1">{{ aviso.titulo }}</h6>
+            <small class="text-muted">{{ aviso.fecha }}</small>
+          </div>
+          <p class="mb-1">{{ aviso.mensaje }}</p>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="list-group-item text-muted text-center">No hay avisos disponibles.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
